@@ -1,0 +1,18 @@
+import mongoose from 'mongoose';
+import * as dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
+async function check() {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI as string);
+        const db = mongoose.connection.db;
+        const listings = await db.collection('foodlistings').find({}).toArray();
+        console.log(`Found ${listings.length} listings:`);
+        listings.forEach(l => console.log(l._id.toString()));
+        process.exit(0);
+    } catch (err) {
+        console.error(err);
+        process.exit(1);
+    }
+}
+check();
