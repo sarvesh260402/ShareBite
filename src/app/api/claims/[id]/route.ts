@@ -7,16 +7,17 @@ import FoodListing, { FoodStatus } from '@/models/FoodListing';
 
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         await dbConnect();
-        const claim = await Claim.findById(params.id)
+        const claim = await Claim.findById(id)
             .populate({
                 path: 'listing',
                 populate: { path: 'user', select: 'name email phoneNumber location' }
@@ -44,9 +45,10 @@ export async function GET(
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -55,7 +57,7 @@ export async function PATCH(
         const { status, deliveryInfo, billAmount } = await req.json();
         await dbConnect();
 
-        const claim = await Claim.findById(params.id).populate('listing');
+        const claim = await Claim.findById(id).populate('listing');
         if (!claim) {
             return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
         }
