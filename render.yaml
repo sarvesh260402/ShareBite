@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: sharebite
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+        generateValue: true
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
