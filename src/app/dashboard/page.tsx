@@ -13,6 +13,55 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [selectedBill, setSelectedBill] = useState<any>(null); // State for generating popup bills
 
+    const downloadBill = (bill: any) => {
+        const content = `
+╔════════════════════════════════════════════╗
+║             SHAREBITE RECEIPT              ║
+╚════════════════════════════════════════════╝
+
+ORDER INFORMATION
+----------------------------------------------
+Order ID:    #${bill._id?.slice(-6).toUpperCase()}
+Date:        ${new Date(bill.createdAt).toLocaleString()}
+Food Item:   ${bill.listing?.title}
+Status:      ${bill.status?.toUpperCase()}
+
+SENDER INFORMATION
+----------------------------------------------
+Name:        ${bill.listing?.user?.name || 'N/A'}
+Contact:     ${bill.listing?.user?.phoneNumber || bill.listing?.user?.email || 'N/A'}
+
+RECEIVER INFORMATION
+----------------------------------------------
+Name:        ${bill.claimant?.name || 'N/A'}
+Contact:     ${bill.claimant?.phoneNumber || bill.claimant?.email || 'N/A'}
+
+DELIVERY INFORMATION
+----------------------------------------------
+Partner:     ${bill.deliveryInfo?.name || 'N/A'}
+Phone:       ${bill.deliveryInfo?.phone || 'N/A'}
+
+BILLING SUMMARY
+----------------------------------------------
+Food Cost:                    ₹0
+Delivery & Packaging Fee:     ₹${bill.billAmount || 0}
+----------------------------------------------
+TOTAL AMOUNT:                 ₹${bill.billAmount || 0}
+
+Thank you for saving food with ShareBite!
+        `;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ShareBite_Bill_${bill._id?.slice(-6).toUpperCase()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/login');
@@ -300,13 +349,22 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => setSelectedBill(null)}
-                            className="btn btn-primary"
-                            style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', fontWeight: 'bold' }}
-                        >
-                            Close Bill
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={() => downloadBill(selectedBill)}
+                                className="btn btn-outline"
+                                style={{ flex: 1, padding: '1rem', fontSize: '1rem', fontWeight: 'bold', border: '2px solid var(--primary)', color: 'var(--primary)' }}
+                            >
+                                Download Bill
+                            </button>
+                            <button
+                                onClick={() => setSelectedBill(null)}
+                                className="btn btn-primary"
+                                style={{ flex: 1, padding: '1rem', fontSize: '1rem', fontWeight: 'bold' }}
+                            >
+                                Close Bill
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

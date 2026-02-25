@@ -15,6 +15,9 @@ async function check() {
         console.log('Connected.');
 
         const db = mongoose.connection.db;
+        if (!db) {
+            throw new Error('Database connection failed - db is undefined');
+        }
         const listings = await db.collection('foodlistings').find({}).toArray();
 
         console.log(`\nTOTAL LISTINGS: ${listings.length}\n`);

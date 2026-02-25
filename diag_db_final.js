@@ -10,10 +10,13 @@ async function run() {
         console.log('Connected.');
 
         // Check if the collection exists and has data
-        const collections = await mongoose.connection.db.listCollections().toArray();
+        const db = mongoose.connection.db;
+        if (!db) {
+            throw new Error('Database connection failed - db is undefined');
+        }
+        const collections = await db.listCollections().toArray();
         console.log('Collections:', collections.map(c => c.name));
 
-        const db = mongoose.connection.db;
         const listings = await db.collection('foodlistings').find({}).toArray();
         console.log(`Found ${listings.length} listings:`);
         listings.forEach(l => {

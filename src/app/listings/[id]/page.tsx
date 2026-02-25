@@ -31,6 +31,55 @@ export default function ListingDetail() {
     const [claimSuccess, setClaimSuccess] = useState(false);
     const [claimData, setClaimData] = useState<any>(null); // Store the Claim doc from API
 
+    const downloadBill = (bill: any) => {
+        const content = `
+╔════════════════════════════════════════════╗
+║             SHAREBITE RECEIPT              ║
+╚════════════════════════════════════════════╝
+
+ORDER INFORMATION
+----------------------------------------------
+Order ID:    #${bill._id?.slice(-6).toUpperCase() || 'N/A'}
+Date:        ${new Date(bill.createdAt || Date.now()).toLocaleString()}
+Food Item:   ${listing?.title || 'N/A'}
+Status:      ${bill.status?.toUpperCase() || 'PENDING'}
+
+SENDER INFORMATION
+----------------------------------------------
+Name:        ${listing?.user?.name || 'N/A'}
+Contact:     ${listing?.user?.phoneNumber || listing?.user?.email || 'N/A'}
+
+RECEIVER INFORMATION
+----------------------------------------------
+Name:        ${session?.user?.name || 'N/A'}
+Contact:     ${session?.user?.email || 'N/A'}
+
+DELIVERY INFORMATION
+----------------------------------------------
+Partner:     ${bill.deliveryInfo?.name || deliveryName || 'N/A'}
+Phone:       ${bill.deliveryInfo?.phone || deliveryPhone || 'N/A'}
+
+BILLING SUMMARY
+----------------------------------------------
+Food Cost:                    ₹0
+Delivery & Packaging Fee:     ₹${bill.billAmount || 0}
+----------------------------------------------
+TOTAL AMOUNT:                 ₹${bill.billAmount || 0}
+
+Thank you for saving food with ShareBite!
+        `;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ShareBite_Bill_${bill._id?.slice(-6).toUpperCase() || 'NEW'}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     // New Delivery State tracking for custom input
     const [deliveryName, setDeliveryName] = useState('');
     const [deliveryPhone, setDeliveryPhone] = useState('');
@@ -281,14 +330,22 @@ export default function ListingDetail() {
                                 </div>
                             </div>
 
-                            <Link
-                                href="/dashboard"
-                                className="btn btn-outline"
-                                style={{ display: 'block', textAlign: 'center', marginTop: '1.5rem', background: 'white' }}
-                            >
-                                Track in Dashboard
-                            </Link>
-
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                                <button
+                                    onClick={() => downloadBill(claimData)}
+                                    className="btn btn-primary"
+                                    style={{ flex: 1, padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontWeight: 'bold' }}
+                                >
+                                    Download Bill
+                                </button>
+                                <Link
+                                    href="/dashboard"
+                                    className="btn btn-outline"
+                                    style={{ flex: 1, textAlign: 'center', padding: '1rem', background: 'white', textDecoration: 'none', color: 'var(--primary)', border: '2px solid var(--primary)', borderRadius: '0.5rem', fontWeight: 'bold' }}
+                                >
+                                    Track Status
+                                </Link>
+                            </div>
                         </motion.div>
                     )}
 

@@ -8,6 +8,9 @@ async function run() {
         await mongoose.connect(uri);
 
         const db = mongoose.connection.db;
+        if (!db) {
+            throw new Error('Database connection failed - db is undefined');
+        }
         const users = await db.collection('users').find({}).toArray();
         console.log(`Found ${users.length} users:`);
         users.forEach(u => {
