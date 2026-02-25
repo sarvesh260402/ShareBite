@@ -12,7 +12,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { listingId, message } = await req.json();
+        const { listingId, message, deliveryName, deliveryPhone } = await req.json();
         await dbConnect();
 
         // Check if already claimed or reserved
@@ -21,10 +21,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Food is no longer available' }, { status: 400 });
         }
 
-        // Mock Delivery Partner and Bill Information
+        // Use provided delivery info or fallback to defaults
         const deliveryInfo = {
-            name: "Rahul Kumar",
-            phone: "+91 98765 43210",
+            name: deliveryName || "Rahul Kumar",
+            phone: deliveryPhone || "+91 98765 43210",
         };
         // Generate a random bill amount between 20 and 50 INR for packaging/delivery
         const generatedBillAmount = Math.floor(Math.random() * 30) + 20;

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Utensils, MapPin, Clock, Filter, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Listing {
     _id: string;
@@ -32,7 +34,15 @@ export default function Listings() {
         lng: null as number | null
     });
 
+    const { data: session } = useSession();
+    const router = useRouter();
+
     useEffect(() => {
+        if ((session?.user as any)?.role === 'sender') {
+            router.push('/dashboard');
+            return;
+        }
+
         // Get location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
@@ -115,7 +125,7 @@ export default function Listings() {
                     <p>Check back later or try adjusting your filters.</p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
                     {listings.map((listing) => (
                         <motion.div
                             key={listing._id}

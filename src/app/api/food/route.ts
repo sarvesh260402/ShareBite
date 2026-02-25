@@ -12,8 +12,26 @@ export async function GET(req: Request) {
         const lng = searchParams.get('lng');
         const distance = searchParams.get('distance') || '10'; // Default 10km
         const category = searchParams.get('category');
+        const userId = searchParams.get('userId');
+        const showAll = searchParams.get('showAll') === 'true';
 
-        let query: any = { status: FoodStatus.AVAILABLE };
+        let query: any = {};
+
+        if (!showAll) {
+            query.status = FoodStatus.AVAILABLE;
+            query.expiryTime = { $gt: new Date() };
+        }
+
+        if (userId) {
+            query.user = userId;
+        }
+
+        // Proactively mark expired listings as EXPIRED in the background
+        // (Optional: this could be moved to a cron job, but doing it on-demand is fine for low traffic)
+        FoodListing.updateMany(
+            { status: FoodStatus.AVAILABLE, expiryTime: { $lt: new Date() } },
+            { status: FoodStatus.EXPIRED }
+        ).exec().catch(err => console.error('Error auto-expiring listings:', err));
 
         if (category && category !== 'all') {
             query.category = category;
@@ -51,8 +69,13 @@ export async function GET(req: Request) {
             }
         } else {
             listings = await FoodListing.find(query)
-                .populate('user', 'name role ratings')
+                .populate('user')
                 .sort({ createdAt: -1 });
+        }
+
+        console.log('API /api/food: found', listings.length, 'listings for query', JSON.stringify(query));
+        if (listings.length > 0) {
+            console.log('API /api/food: first listing user:', listings[0].user);
         }
 
         return NextResponse.json(listings);

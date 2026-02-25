@@ -30,18 +30,70 @@ export default function Dashboard() {
             // Fetch listings ONLY if explicitly assigned the sender role (to hide empty lists for strict receivers)
             let listings = [];
             if ((session?.user as any)?.role === 'sender') {
-                const listingsRes = await fetch('/api/food');
+                const userId = (session?.user as any)?.id;
+                console.log('Dashboard: current userId:', userId);
+                // Fetch all listings for this user specifically
+                const listingsRes = await fetch(`/api/food?userId=${userId}&showAll=true`);
                 const allListings = await listingsRes.json();
+                console.log('Dashboard: total listings from API:', allListings?.length);
                 if (Array.isArray(allListings)) {
-                    listings = allListings.filter(l => l.user && l.user._id === (session?.user as any)?.id);
+                    listings = allListings;
+                    console.log('Dashboard: listings for sender:', listings.length);
                 }
             }
 
-            setData({ listings, claims: Array.isArray(claims) ? claims : [] });
+            setData({
+                listings: Array.isArray(listings) ? listings.filter(l => l.status === 'available' || l.status === 'reserved') : [],
+                claims: Array.isArray(claims) ? claims : []
+            });
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const updateClaimStatus = async (claimId: string, status: string) => {
+        try {
+            const res = await fetch(`/api/claims/${claimId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) {
+                fetchDashboardData();
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Failed to update claim');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const markListingAsCompleted = async (listingId: string, claimId: string) => {
+        try {
+            // Update the listing status to picked_up
+            const listingRes = await fetch(`/api/food/${listingId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'picked_up' })
+            });
+
+            // Update the claim status to completed
+            const claimRes = await fetch(`/api/claims/${claimId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'completed' })
+            });
+
+            if (listingRes.ok && claimRes.ok) {
+                fetchDashboardData();
+            } else {
+                alert('Failed to complete the process');
+            }
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -64,21 +116,31 @@ export default function Dashboard() {
             </header>
 
             {/* Stats Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', color: 'var(--primary)' }}>
-                        <Package size={24} />
-                        <h4 style={{ margin: 0 }}>Listings</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                {role === 'sender' && (
+                    <Link href="/my-listings" style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)', cursor: 'pointer', transition: 'transform 0.2s', height: '100%' }}
+                            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'}
+                            onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', color: 'var(--primary)' }}>
+                                <Package size={24} />
+                                <h4 style={{ margin: 0 }}>My Listings</h4>
+                            </div>
+                            <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{data.listings.length}</p>
+                        </div>
+                    </Link>
+                )}
+                <Link href="/claims" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)', cursor: 'pointer', transition: 'transform 0.2s', height: '100%' }}
+                        onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'}
+                        onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', color: 'var(--secondary)' }}>
+                            <History size={24} />
+                            <h4 style={{ margin: 0 }}>{role === 'sender' ? 'Claims Received' : 'My Claims'}</h4>
+                        </div>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{data.claims.length}</p>
                     </div>
-                    <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{data.listings.length}</p>
-                </div>
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', color: 'var(--secondary)' }}>
-                        <History size={24} />
-                        <h4 style={{ margin: 0 }}>Claims</h4>
-                    </div>
-                    <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{data.claims.length}</p>
-                </div>
+                </Link>
             </div>
 
             {/* Main Content Sections */}
@@ -94,10 +156,12 @@ export default function Dashboard() {
                                 data.listings.map((listing: any) => (
                                     <div key={listing._id} style={{ background: 'white', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
                                         <div>
-                                            <h4 style={{ margin: '0 0 0.25rem' }}>{listing.title}</h4>
+                                            <Link href={`/listings/${listing._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                                <h4 style={{ margin: '0 0 0.25rem', cursor: 'pointer', color: 'var(--primary)' }}>{listing.title}</h4>
+                                            </Link>
                                             <p style={{ margin: 0, fontSize: '0.875rem', color: '#666' }}>Status: {listing.status}</p>
                                         </div>
-                                        <Link href={`/listings/${listing._id}`} style={{ color: 'var(--primary)', fontSize: '0.875rem' }}>View</Link>
+                                        <Link href={`/listings/${listing._id}`} style={{ color: 'var(--primary)', fontSize: '0.875rem', fontWeight: 'bold' }}>View Details</Link>
                                     </div>
                                 ))
                             )}
@@ -110,24 +174,24 @@ export default function Dashboard() {
                     <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>
                         Your Claims & Generated Bills
                     </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
                         {data.claims.length === 0 ? (
-                            <div style={{ padding: '2rem', textAlign: 'center', background: '#f9f9f9', borderRadius: '0.5rem' }}>No recent claims found.</div>
+                            <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', background: '#f9f9f9', borderRadius: '0.5rem' }}>No recent claims found.</div>
                         ) : (
                             data.claims.map((claim: any) => (
-                                <div key={claim._id} style={{ background: 'white', padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #eee', paddingBottom: '1rem', marginBottom: '1rem' }}>
+                                <div key={claim._id} style={{ background: 'white', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #eee', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
                                         <div>
-                                            <h4 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>{claim.listing?.title}</h4>
-                                            <p style={{ margin: 0, fontSize: '0.875rem', color: '#666' }}>
+                                            <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{claim.listing?.title}</h4>
+                                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#666' }}>
                                                 {role === 'receiver' || claim.claimant?._id === (session?.user as any)?.id ? `Donor: ${claim.listing?.user?.name || 'Anonymous'}` : `Claimed by: ${claim.claimant?.name}`}
                                             </p>
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
+                                        <div>
                                             <span style={{
-                                                padding: '0.25rem 0.75rem',
+                                                padding: '0.2rem 0.5rem',
                                                 borderRadius: '1rem',
-                                                fontSize: '0.75rem',
+                                                fontSize: '0.65rem',
                                                 fontWeight: 'bold',
                                                 background: claim.status === 'pending' ? '#fff3e0' : (claim.status === 'approved' ? '#e8f5e9' : '#f5f5f5'),
                                                 color: claim.status === 'pending' ? '#ef6c00' : (claim.status === 'approved' ? '#2e7d32' : '#666')
@@ -136,18 +200,31 @@ export default function Dashboard() {
                                             </span>
                                         </div>
                                     </div>
-
-                                    {/* Action Buttons for Claim */}
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '0.5rem' }}>
                                         <button
                                             onClick={() => setSelectedBill(claim)}
                                             className="btn btn-outline"
-                                            style={{ fontSize: '0.875rem', padding: '0.5rem 1rem', background: '#f5f5f5', border: '1px solid #ddd', color: '#333' }}
+                                            style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem', background: '#f5f5f5', border: '1px solid #ddd', color: '#333' }}
                                         >
-                                            View Full Bill
+                                            View Bill
                                         </button>
                                         {(session?.user as any)?.role === 'sender' && claim.status === 'pending' && (
-                                            <button className="btn btn-primary" style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}>Approve Delivery</button>
+                                            <button
+                                                onClick={() => updateClaimStatus(claim._id, 'approved')}
+                                                className="btn btn-primary"
+                                                style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                                            >
+                                                Approve
+                                            </button>
+                                        )}
+                                        {(session?.user as any)?.role === 'sender' && claim.status === 'approved' && (
+                                            <button
+                                                onClick={() => markListingAsCompleted(claim.listing?._id, claim._id)}
+                                                className="btn btn-secondary"
+                                                style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem', background: '#4caf50', color: 'white', border: 'none' }}
+                                            >
+                                                Picked Up
+                                            </button>
                                         )}
                                     </div>
                                 </div>
@@ -165,8 +242,8 @@ export default function Dashboard() {
                     alignItems: 'center', justifyContent: 'center', zIndex: 1000
                 }}>
                     <div style={{
-                        background: 'white', padding: '2.5rem', borderRadius: '1.5rem',
-                        width: '90%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto',
+                        background: 'white', padding: '1.5rem', borderRadius: '1.5rem',
+                        width: '95%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto',
                         boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #eee', paddingBottom: '1rem' }}>
@@ -184,7 +261,7 @@ export default function Dashboard() {
                             <p style={{ margin: 0 }}><strong>Date:</strong> {new Date(selectedBill.createdAt).toLocaleString()}</p>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                             <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '0.75rem' }}>
                                 <h4 style={{ color: '#666', marginBottom: '0.5rem', fontSize: '0.85rem', textTransform: 'uppercase' }}>Sender Info</h4>
                                 <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}><strong>Name:</strong> {selectedBill.listing?.user?.name || 'N/A'}</p>

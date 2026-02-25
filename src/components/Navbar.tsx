@@ -19,10 +19,11 @@ export default function Navbar() {
 
                 {/* Desktop Menu */}
                 <div style={{ display: 'none', gap: '1.5rem', alignItems: 'center' }} className="desktop-menu">
-                    <Link href="/listings">Find Food</Link>
+                    {((session?.user as any)?.role !== 'sender') && <Link href="/listings">Find Food</Link>}
                     {session ? (
                         <>
                             <Link href="/dashboard">Dashboard</Link>
+                            <Link href="/claims">My Claims</Link>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <User size={20} />
                                 <span>{session.user?.name}</span>
@@ -58,10 +59,11 @@ export default function Navbar() {
             {isOpen && (
                 <div style={{ padding: '1rem', background: 'white', borderTop: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <Link href="/listings" onClick={() => setIsOpen(false)}>Find Food</Link>
+                        {((session?.user as any)?.role !== 'sender') && <Link href="/listings" onClick={() => setIsOpen(false)}>Find Food</Link>}
                         {session ? (
                             <>
                                 <Link href="/dashboard" onClick={() => setIsOpen(false)}>Dashboard</Link>
+                                <Link href="/claims" onClick={() => setIsOpen(false)}>My Claims</Link>
                                 <button onClick={() => signOut()} className="btn btn-outline">Logout</button>
                             </>
                         ) : (

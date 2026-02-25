@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import * as dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 import FoodListing from './src/models/FoodListing';
 
 async function check() {
